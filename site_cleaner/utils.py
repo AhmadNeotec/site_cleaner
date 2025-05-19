@@ -7,16 +7,16 @@ def get_bench_sites():
     Returns a list of site names.
     """
     try:
-        # Calculate sites path relative to the bench directory
-        sites_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "sites"))
+        # Get bench path and sites path
+        bench_path = frappe.utils.get_bench_path()  # e.g., /home/ubuntu/frappe-bench
+        sites_path = os.path.join(bench_path, "sites")  # e.g., /home/ubuntu/frappe-bench/sites
+        sites_path = os.path.abspath(sites_path)
         frappe.log(f"Calculated sites path: {sites_path}")
-        
-        # Verify the directory exists
+
         if not os.path.exists(sites_path):
             frappe.log(f"Sites directory does not exist: {sites_path}")
             return []
-        
-        # Get all directories in sites_path
+
         sites = [d for d in os.listdir(sites_path) if os.path.isdir(os.path.join(sites_path, d))]
         frappe.log(f"Found sites: {sites}")
         return sites

@@ -21,36 +21,52 @@ class SiteDeletionRequest(Document):
         if self.delete_now and self.status == "Pending":
             frappe.log(f"Starting deletion process for sites: {[site.site_name for site in self.sites_to_delete]}")
             self.status = "Processing"
-            self.error_log = ""  # Initialize error_log
+            self.error_log = ""
             self.save()
             frappe.db.commit()
-            
-            # Compute bench path dynamically
-            sites_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "..", "sites"))
-            bench_path = os.path.dirname(sites_path)
-            frappe.log(f"Bench path: {bench_path}")
-            
-            # Fetch MySQL root password from common_site_config.json
+
+            # Get bench path and sites path
+            bench_path = frappe.utils.get_bench_path()  # e.g., /home/ubuntu/frappe-bench
+            sites_path = os.path.join(bench_path, "sites")  # e.g., /home/ubuntu/frappe-bench/sites
+            sites_path = os.path.abspath(sites_path)
+            frappe.log(f"Calculated sites_path: {sites_path}, bench_path: {bench_path}")
+
+            # Verify sites_path exists
+            if not os.path.exists(sites_path):
+                frappe.log(f"Error: Sites directory does not exist at {sites_path}")
+                self.status = "Failed"
+                self.error_log = f"Error: Sites directory does not exist at {sites_path}\n"
+                self.save()
+                frappe.db.commit()
+                return
+
+            # Fetch MySQL root password
             mysql_root_password = frappe.get_conf().get("db_root_password", "system")
-            
-            deletion_attempted = False  # Track if any deletion was attempted
-            all_skipped = True  # Track if all sites were skipped
-            
+
+            deletion_attempted = False
+            all_skipped = True
+
             for site in self.sites_to_delete:
-                site_name = site.site_name
+                site_name = site.site_name.strip()
                 site_path = os.path.join(sites_path, site_name)
+                
+                frappe.log(f"Checking site {site_name} at path: {site_path}")
                 
                 # Check if site exists
                 if not os.path.exists(site_path):
-                    frappe.log(f"Skipping site {site_name}: Site does not exist")
-                    self.error_log += f"Skipped {site_name}: Site does not exist\n"
+                    frappe.log(f"Skipping site {site_name}: Site does not exist at {site_path}")
+                    self.error_log += f"Skipped {site_name}: Site does not exist at {site_path}\n"
                     continue
                 
-                # Site exists, attempt deletion
+                # Verify site_path is a directory
+                if not os.path.isdir(site_path):
+                    frappe.log(f"Skipping site {site_name}: Path {site_path} is not a directory")
+                    self.error_log += f"Skipped {site_name}: Path {site_path} is not a directory\n"
+                    continue
+
                 deletion_attempted = True
                 try:
                     frappe.log(f"Attempting to delete site {site_name}")
-                    # Run bench drop-site command
                     result = subprocess.run(
                         ["bench", "drop-site", site_name, "--force", "--root-password", mysql_root_password],
                         cwd=bench_path,
@@ -68,7 +84,7 @@ class SiteDeletionRequest(Document):
                     self.save()
                     frappe.db.commit()
                     return
-            
+
             # Determine final status
             if deletion_attempted and not all_skipped:
                 self.status = "Completed"
@@ -79,7 +95,7 @@ class SiteDeletionRequest(Document):
             else:
                 self.status = "Completed"
                 self.error_log += "No sites were selected for deletion\n"
-            
+
             self.save()
             frappe.db.commit()
             frappe.log(f"Deletion process completed for Site Deletion Request {self.name}")
