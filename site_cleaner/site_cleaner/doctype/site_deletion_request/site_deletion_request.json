@@ -6,6 +6,7 @@
  "engine": "InnoDB",
  "field_order": [
   "sites_to_delete",
+  "mysql_root_password",
   "status",
   "delete_now",
   "error_log"
@@ -16,6 +17,12 @@
    "fieldtype": "Table",
    "label": "Sites To Delete",
    "options": "Site Deletion Item"
+  },
+  {
+   "fieldname": "mysql_root_password",
+   "fieldtype": "Password",
+   "label": "MySQL Root Password",
+   "description": "Enter the MySQL root password for the bench database. This is required to delete sites."
   },
   {
    "fieldname": "status",
