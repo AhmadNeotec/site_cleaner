@@ -9,11 +9,20 @@
   "site_name"
  ],
  "fields": [
-  {
+    {
    "fieldname": "site_name",
    "fieldtype": "Data",
    "in_list_view": 1,
-   "label": "Site Name"
+   "label": "Site Name",
+   "read_only": 1,
+   "reqd": 1
+  },
+  {
+   "default": "0",
+   "fieldname": "delete",
+   "fieldtype": "Check",
+   "in_list_view": 1,
+   "label": "Delete"
   }
  ],
  "grid_page_length": 50,
