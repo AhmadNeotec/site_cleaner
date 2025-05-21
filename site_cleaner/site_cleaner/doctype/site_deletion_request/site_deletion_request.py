@@ -39,9 +39,22 @@ class SiteDeletionRequest(Document):
                 self.save()
                 frappe.db.commit()
                 return
+            
+            # Get MySQL root password - IMPROVED PASSWORD HANDLING
+            mysql_root_password = self.mysql_root_password
+            if not mysql_root_password:
+                mysql_root_password = frappe.get_conf().get("db_root_password", "")
+                
+            # Validate we have a password
+            if not mysql_root_password:
+                self.status = "Failed"
+                self.error_log = "MySQL root password is required but not provided\n"
+                self.save()
+                frappe.db.commit()
+                return
 
-            # Fetch MySQL root password
-            mysql_root_password = frappe.get_conf().get("db_root_password", "system")
+            # Log password length for debugging
+            frappe.log(f"MySQL password length: {len(mysql_root_password) if mysql_root_password else 0}")
 
             deletion_attempted = False
             all_skipped = True
@@ -67,14 +80,22 @@ class SiteDeletionRequest(Document):
                 deletion_attempted = True
                 try:
                     frappe.log(f"Attempting to delete site {site_name}")
+                    
+                    # Set environment with the password - IMPROVED METHOD
+                    env = os.environ.copy()
+                    env["MYSQL_PWD"] = mysql_root_password
+                    
+                    # Run the command without exposing password on command line
                     result = subprocess.run(
-                        ["bench", "drop-site", site_name, "--force", "--root-password", mysql_root_password],
+                        ["bench", "drop-site", site_name, "--force"],
                         cwd=bench_path,
+                        env=env,
                         capture_output=True,
                         text=True,
                         check=True
                     )
-                    frappe.log(f"Successfully deleted site {site_name}: {result.stdout}")
+                    
+                    frappe.log(f"Successfully deleted site {site_name}")
                     self.error_log += f"Successfully deleted {site_name}\n"
                     all_skipped = False
                 except subprocess.CalledProcessError as e:

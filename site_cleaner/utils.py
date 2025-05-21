@@ -1,6 +1,6 @@
 import os
 import frappe
-
+@frappe.whitelist(allow_guest=True)
 def get_bench_sites():
     """
     Fetch all site directories in the Frappe bench's sites directory.
